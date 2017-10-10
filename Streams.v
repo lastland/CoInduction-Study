@@ -20,45 +20,20 @@ End Stream_LE.
 
 Arguments stream_le {_} {_}.
 
-Section Stream_LE_Thoerems.
-  Variable A : Type.
-  Context `{Le A}.
+Ltac inv_stream_le :=
+  match goal with
+  | [H: stream_le _ _ |- _ ] =>
+    inversion H; subst; clear H
+  end.
 
-  Ltac destruct_stream_le :=
-    match goal with
-    | [H: stream_le ?a ?b |- _ ] =>
-      destruct a; destruct b; inversion H; subst
-    end.
-
-  Lemma hd_le : forall s1 s2, stream_le s1 s2 -> le (hd s1) (hd s2).
-  Proof.
-    intros. destruct_stream_le.
-    simpl; assumption.
-  Qed.
-  
-  Lemma tl_le : forall s1 s2, stream_le s1 s2 ->
-                         (hd s1) = (hd s2) ->
-                         stream_le (tl s1) (tl s2).
-  Proof.
-    intros. destruct_stream_le.
-    simpl in *; auto.
-  Qed.
-
-  Hint Resolve eq_refl.
-
-  Theorem stream_le_trans: forall (a b c : Stream A),
-      stream_le a b ->
-      stream_le b c ->
-      stream_le a c.
-  Proof.
-    cofix. destruct a; destruct b; destruct c. intros.
-    constructor.
-    - apply hd_le in H0. apply hd_le in H1. simpl in *.
-      eapply le_trans; eassumption.
-    - intros; subst. assert (a1 = a2).
-      { inversion H0; subst; inversion H1; subst.
-        apply (le_asm _ _ H6) in H5; assumption. }
-      subst. apply tl_le in H0; apply tl_le in H1; simpl in *; auto.
-      + eapply stream_le_trans; eassumption.
-  Qed.
-End Stream_LE_Thoerems.  
+Theorem stream_le_trans {A} `{Le A}: forall (a b c : Stream A),
+    stream_le a b ->
+    stream_le b c ->
+    stream_le a c.
+Proof.
+  cofix. destruct a; destruct b; destruct c. intros.
+  constructor; repeat inv_stream_le.
+  - eapply le_trans; eassumption. 
+  - intros; subst. apply (le_asm _ _ H4) in H5; subst.
+    eapply stream_le_trans; eauto.
+Qed.
