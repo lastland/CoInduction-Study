@@ -3,8 +3,6 @@ Require Import Coq.Lists.Streams.
 Require Import ChargeCore.Logics.ILogic.
 Require Import ChargeCore.Logics.ILInsts.
 
-Set Implicit Arguments.
-
 Section TraceProp.
   Variable T : Type.
   
@@ -67,24 +65,35 @@ Section LTL_Theorems.
   Variables P Q : TraceProp T.
   Variable s: Stream T.
 
+  Ltac inv_ltl :=
+    repeat match goal with
+           | [H: context[Next _ _] |- _ ] =>
+             unfold Next in H
+           | [H: Always _ _ |- _ ] =>
+             inversion H; subst; clear H
+           | [H: Eventually _ _ |- _ ] =>
+             inversion H; subst; clear H
+           | [H: Until _ _ _ |- _ ] =>
+             inversion H; subst; clear H
+           end; try intuition.
+
   Theorem Not_Next :
     (Next P -->> lfalse) s <-> (Next (P -->> lfalse)) s.
   Proof.
-    destruct s; simpl; reflexivity.
+    destruct s; reflexivity.
   Qed.
 
   Theorem Next_dist :
     (Next (P -->> Q)) s <-> (Next P -->> Next Q) s.
   Proof.
-    destruct s; simpl; reflexivity.
+    destruct s; reflexivity.
   Qed.
 
   Theorem Always_dist :
     (Always (P -->> Q)) s -> (Always P -->> Always Q) s.
   Proof.
     generalize dependent s; cofix;
-      destruct s0; simpl; intros.
-    inversion H; subst; inversion H0; subst.
+      destruct s0; simpl; intros; inv_ltl.
     constructor; try apply Always_dist; auto.
   Qed.
 
@@ -92,33 +101,28 @@ Section LTL_Theorems.
     (Always (P -->> Next P)) s -> (P -->> Always P) s.
   Proof.
     simpl; generalize dependent s; cofix;
-      destruct s0; simpl; intros.
-    unfold Next in H; inversion H; subst.
+      destruct s0; simpl; intros; inv_ltl.
     constructor; try apply Always_Next; auto.
   Qed.
 
   Theorem Always_and_P :
     (Always P) s -> (P //\\ Always P) s.
   Proof.
-    simpl; intros; split; auto.
-    inversion H; auto.
+    simpl; intros; split; auto; inv_ltl.
   Qed.
 
   Theorem Until_Eventually :
     (Until P Q) s -> (Eventually Q) s.
   Proof.
-    induction 1;
-      (left + right); solve [auto].
+    induction 1; (left + right); solve [auto].
   Qed.
 
   Theorem Always_Until :
     (Until P Q) s <-> (Q \\// (P //\\ (Next (Until P Q)))) s.
   Proof.
-    simpl; split; intros.
-    - inversion H; subst;
-        (left + right); solve [auto].
-    - destruct H; destruct s; try unfold Next in H;
-        (left + right); solve [intuition].
+    simpl; split; intros; inv_ltl.
+    - constructor; auto.
+    - destruct s. constructor 2; auto.
   Qed.
       
   Theorem Always_and :
@@ -126,11 +130,10 @@ Section LTL_Theorems.
   Proof.
     split; simpl.
     - generalize dependent s. cofix.
-      intros; destruct s. destruct H as [HP HQ].
-      inversion HP; subst; inversion HQ; subst.
+      intros; destruct s. destruct H; inv_ltl.
       red. constructor; try apply Always_and; intuition.
     - split; generalize dependent s; cofix;
-        solve [intros; destruct s; inversion H; subst; constructor;
+        solve [intros; destruct s; inv_ltl; constructor;
                solve [apply Always_and; assumption | intuition ] ].
   Qed.
 End LTL_Theorems.
